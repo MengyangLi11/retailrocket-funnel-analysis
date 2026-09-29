@@ -1,0 +1,108 @@
+{
+  "events": 2756101,
+  "visitors": 1407580,
+  "viewers": 1404179,
+  "carters": 37722,
+  "buyers": 11719,
+  "view_to_cart_pct": 2.68640963865718,
+  "cart_to_buy_pct": 31.066751497799693,
+  "view_to_buy_pct": 0.8345802066545647,
+  "carters_without_logged_view": 3321,
+  "strict_v2c_pct": 2.4499013302435086,
+  "full_weeks": 19,
+  "weekly_v2c_min_pct": 2.2865944667996034,
+  "weekly_v2c_max_pct": 2.9634160625740202,
+  "weekly_v2c_mean_pct": 2.5770315864284075,
+  "weekly_v2c_sd_pp": 0.17623542681875426,
+  "weekly_active_min": 70742,
+  "weekly_active_max": 97609,
+  "depth_table": [
+    {
+      "depth_bucket": "1 item",
+      "viewers": 1118109,
+      "carters": 14799,
+      "view_to_cart_pct": 1.32,
+      "pct_of_viewers": 79.63,
+      "pct_of_carters": 43.02
+    },
+    {
+      "depth_bucket": "2-4 items",
+      "viewers": 247092,
+      "carters": 12444,
+      "view_to_cart_pct": 5.04,
+      "pct_of_viewers": 17.6,
+      "pct_of_carters": 36.17
+    },
+    {
+      "depth_bucket": "5-9 items",
+      "viewers": 29769,
+      "carters": 4332,
+      "view_to_cart_pct": 14.55,
+      "pct_of_viewers": 2.12,
+      "pct_of_carters": 12.59
+    },
+    {
+      "depth_bucket": "10+ items",
+      "viewers": 9209,
+      "carters": 2826,
+      "view_to_cart_pct": 30.69,
+      "pct_of_viewers": 0.66,
+      "pct_of_carters": 8.21
+    }
+  ],
+  "single_item_share_pct": 79.62724125627858,
+  "single_item_v2c_pct": 1.323573998599421,
+  "multi_item_v2c_pct": 6.852169049533331,
+  "pct_single_one_pageview": 90.12806443736702,
+  "pct_single_one_day": 97.42198658628094,
+  "pct_non_carters_single_item": 80.5466287237786,
+  "avg_items_per_viewer": 1.5184153872120292,
+  "buyer_avg_items": 9.614117438667966,
+  "nonbuyer_avg_items": 1.4527901740843485,
+  "pct_one_time_visitors": 89.78608675883432,
+  "pct_repeat_buyers": 9.070739824217084,
+  "new_viewers_per_week": 71764.05263157895,
+  "scenarios": [
+    {
+      "scenario": "Low reach",
+      "reach": 0.1,
+      "causal_share": 1.0,
+      "extra_carters": 4151.0991,
+      "relative_lift_pct": 11.0045,
+      "baseline_pct": 2.6864,
+      "projected_pct": 2.982
+    },
+    {
+      "scenario": "Conservative",
+      "reach": 0.17,
+      "causal_share": 0.5,
+      "extra_carters": 3528.4343,
+      "relative_lift_pct": 9.3538,
+      "baseline_pct": 2.6864,
+      "projected_pct": 2.9377
+    },
+    {
+      "scenario": "Central",
+      "reach": 0.17,
+      "causal_share": 1.0,
+      "extra_carters": 7056.8685,
+      "relative_lift_pct": 18.7076,
+      "baseline_pct": 2.6864,
+      "projected_pct": 3.189
+    },
+    {
+      "scenario": "High reach",
+      "reach": 0.25,
+      "causal_share": 1.0,
+      "extra_carters": 10377.7479,
+      "relative_lift_pct": 27.5111,
+      "baseline_pct": 2.6864,
+      "projected_pct": 3.4255
+    }
+  ],
+  "model_inputs": {
+    "single_item_viewers": 1118109,
+    "rate_1": 0.01323573998599421,
+    "rate_2to4": 0.050361808557136616
+  }
+}

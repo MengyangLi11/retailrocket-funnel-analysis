@@ -1,0 +1,149 @@
+// ============================================================
+// RetailRocket Funnel: DAX measures
+// Create a table called _Measures (Enter data > one empty column > Load)
+// and add each measure below to it (Modeling > New measure).
+// Table names match the CSV file names in powerbi/data/.
+// ============================================================
+
+
+// ---------- Date table (Modeling > New table) ----------
+Date =
+ADDCOLUMNS (
+    CALENDAR ( DATE ( 2015, 5, 3 ), DATE ( 2015, 9, 18 ) ),
+    "Week Start", [Date] - WEEKDAY ( [Date], 3 ),
+    "Month", FORMAT ( [Date], "mmm yyyy" ),
+    "Month Num", MONTH ( [Date] )
+)
+// Relationship: Date[Date] 1 --> * fact_visitor_cohort[first_seen_date]
+
+
+// ---------- Depth bucket sort table (Modeling > New table) ----------
+Depth Buckets =
+DATATABLE (
+    "depth_bucket", STRING, "Sort", INTEGER,
+    {
+        { "0 (no view)", 0 },
+        { "1 item", 1 },
+        { "2-4 items", 2 },
+        { "5-9 items", 3 },
+        { "10+ items", 4 }
+    }
+)
+// Relationship: Depth Buckets[depth_bucket] 1 --> * fact_visitor_cohort[depth_bucket]
+// Then: select Depth Buckets[depth_bucket] > Sort by column > Sort
+
+
+// =================== Core funnel ===================
+Visitors = SUM ( fact_visitor_cohort[visitors] )
+
+Viewers = SUM ( fact_visitor_cohort[viewers] )
+
+Carters = SUM ( fact_visitor_cohort[carters] )
+
+Buyers = SUM ( fact_visitor_cohort[buyers] )
+
+View to Cart % = DIVIDE ( [Carters], [Viewers] )                 // 2.69%
+
+Cart to Purchase % = DIVIDE ( [Buyers], [Carters] )              // 31.07%
+
+View to Purchase % = DIVIDE ( [Buyers], [Viewers] )              // 0.83%
+
+Drop-off View to Cart % = 1 - [View to Cart %]                   // 97.3%
+
+
+// =================== Browse depth (the driver) ===================
+// Viewers-only cart rate, used whenever we slice by items viewed
+Cart Rate (viewers) =
+DIVIDE ( SUM ( fact_visitor_cohort[carters_with_view] ), [Viewers] )   // 2.45% overall
+
+Avg Items Viewed =
+DIVIDE ( SUM ( fact_visitor_cohort[items_viewed_total] ), [Viewers] ) // 1.52
+
+Single-Item Viewers =
+CALCULATE ( [Viewers], fact_visitor_cohort[items_viewed_capped] = 1 )
+
+Single-Item Share % =
+DIVIDE (
+    [Single-Item Viewers],
+    CALCULATE ( [Viewers],
+        REMOVEFILTERS ( fact_visitor_cohort[items_viewed_capped] ),
+        REMOVEFILTERS ( fact_visitor_cohort[depth_bucket] ),
+        REMOVEFILTERS ( 'Depth Buckets' ) )
+)                                                                // 79.6%
+
+Cart Rate 1 Item =
+CALCULATE ( [Cart Rate (viewers)],
+    REMOVEFILTERS ( 'Depth Buckets' ),
+    REMOVEFILTERS ( fact_visitor_cohort[depth_bucket] ),
+    fact_visitor_cohort[items_viewed_capped] = 1 )               // 1.32%
+
+Cart Rate 2+ Items =
+CALCULATE ( [Cart Rate (viewers)],
+    REMOVEFILTERS ( 'Depth Buckets' ),
+    REMOVEFILTERS ( fact_visitor_cohort[depth_bucket] ),
+    fact_visitor_cohort[items_viewed_capped] >= 2 )              // 6.85%
+
+Cart Rate 2-4 Items =
+CALCULATE ( [Cart Rate (viewers)],
+    REMOVEFILTERS ( 'Depth Buckets' ),
+    REMOVEFILTERS ( fact_visitor_cohort[items_viewed_capped] ),
+    fact_visitor_cohort[depth_bucket] = "2-4 items" )            // 5.04%
+
+Multi vs Single Multiplier =
+DIVIDE ( [Cart Rate 2+ Items], [Cart Rate 1 Item] )              // ~5.2x
+
+
+// =================== Retention ===================
+Returning Visitor % =
+DIVIDE ( CALCULATE ( [Visitors], fact_visitor_cohort[is_returning] = 1 ), [Visitors] )  // 10.2%
+
+Repeat Buyer % =
+DIVIDE ( SUM ( fact_visitor_cohort[repeat_buyers] ), [Buyers] )  // 9.1%
+
+
+// =================== Weekly trend (weekly_funnel table) ===================
+// weekly_funnel holds DISTINCT visitors per week, so never add weeks together:
+// use these measures with week_start on the axis.
+Weekly View to Cart % =
+DIVIDE ( SUM ( weekly_funnel[carters] ), SUM ( weekly_funnel[viewers] ) )
+
+Weekly Active Visitors = SUM ( weekly_funnel[active_visitors] )
+
+
+// =================== A/B test projection (What-if) ===================
+// Modeling > New parameter > Numeric range:
+//   "Reach"        0 to 0.40, step 0.01, default 0.17
+//   "Causal Share" 0 to 1.00, step 0.05, default 1.00
+// Power BI creates Reach[Reach Value] and 'Causal Share'[Causal Share Value].
+
+Projected Extra Carters =
+[Single-Item Viewers]
+    * [Reach Value]
+    * [Causal Share Value]
+    * ( [Cart Rate 2-4 Items] - [Cart Rate 1 Item] )             // 7,057 at defaults
+
+Projected Relative Lift % =
+DIVIDE ( [Projected Extra Carters], [Carters] )                  // 18.7% at defaults
+
+Projected View to Cart % =
+DIVIDE ( [Carters] + [Projected Extra Carters], [Viewers] )      // 3.19% at defaults
+
+
+// =================== Test sizing ===================
+// Modeling > New parameter > Numeric range:
+//   "Target Lift" 0.05 to 0.30, step 0.01, default 0.19
+Sample Size per Arm =
+VAR p1 = [View to Cart %]
+VAR p2 = p1 * ( 1 + [Target Lift Value] )
+VAR pbar = ( p1 + p2 ) / 2
+VAR za = NORM.S.INV ( 1 - 0.05 / 2 )
+VAR zb = NORM.S.INV ( 0.80 )
+RETURN
+    ROUNDUP (
+        POWER ( za * SQRT ( 2 * pbar * ( 1 - pbar ) )
+              + zb * SQRT ( p1 * ( 1 - p1 ) + p2 * ( 1 - p2 ) ), 2 )
+        / POWER ( p2 - p1, 2 ),
+        0 )                                                      // 17,202 at 19%
+
+Test Days at Full Traffic =
+DIVIDE ( 2 * [Sample Size per Arm], 71764 / 7 )                  // 3.4 days at 19%

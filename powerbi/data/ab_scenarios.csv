@@ -1,0 +1,5 @@
+scenario,reach,causal_share,extra_carters,relative_lift_pct,baseline_pct,projected_pct
+Low reach,0.1,1.0,4151.0991,11.0045,2.6864,2.982
+Conservative,0.17,0.5,3528.4343,9.3538,2.6864,2.9377
+Central,0.17,1.0,7056.8685,18.7076,2.6864,3.189
+High reach,0.25,1.0,10377.7479,27.5111,2.6864,3.4255

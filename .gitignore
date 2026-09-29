@@ -1,0 +1,6 @@
+events.csv
+*.csv.gz
+item_properties*.csv
+category_tree.csv
+__pycache__/
+.DS_Store

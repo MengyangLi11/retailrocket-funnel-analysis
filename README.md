@@ -1,129 +1,176 @@
-# RetailRocket E-Commerce Funnel Analysis
+# RetailRocket E-Commerce Funnel Analysis (SQL · Power BI)
 
-**Where do online shoppers drop off before buying, and what should the business actually do about it?**
+**Why do 97% of shoppers on this store never add anything to their cart, and what test would fix it?**
 
-I took 2.75 million real user events from an online store and used SQL to figure out where the funnel breaks, why it breaks there, and what experiment I'd run to fix it.
+I analyzed **2.75M real e-commerce events from 1.4M visitors** in SQL to map the purchase funnel. I found a **structural 2.7% view-to-cart conversion** driven by the **80% of visitors who bounce after viewing a single item**. From that I designed a product-discovery A/B test **projected to lift conversion by 19% relative**, with a formal hypothesis, primary and guardrail metrics, sample size and success criteria.
+
+![Funnel and conversion by browsing depth](images/funnel_and_depth.png)
 
 ---
 
-## The short version
+## Key results
 
-Only about 2.7% of visitors ever add something to their cart. That number barely moves week to week, so this isn't a bad month or a seasonal dip. It's baked into the experience.
+| | |
+|---|---|
+| Events analyzed | **2,756,101** (views, add-to-carts, purchases) |
+| Unique visitors | **1,407,580** (1,404,179 viewed a product) |
+| View → cart | **2.7%** (37,722 of 1,404,179 viewers) |
+| Cart → purchase | **31.1%** (checkout is not the problem) |
+| Viewers who see only 1 item | **79.6%** (and they add to cart at just **1.3%**) |
+| Viewers who see 2+ items | add to cart at **6.9%**, about 5x higher |
+| Recommended test | "You may also like" strip on the product page |
+| Projected lift | **+19% relative** (2.69% → 3.19%), 14-day test, MDE 9.1% |
 
-Dig into behavior and the reason gets clear fast. Eight out of ten visitors look at a single product and leave. The people who actually buy behave completely differently: they browse around ten items each before checking out. On top of that, 90% of visitors never come back, and even among buyers, 9 in 10 never place a second order.
+---
 
-So the store is good at pulling people in and fine at closing the ones who engage. The gap is in the middle. Most visitors never explore enough to find something worth buying. My recommendation is to help those one-item browsers discover more products, and I've laid out an A/B test to prove whether it works.
+## Project structure
 
-![Funnel and browsing-depth chart: only 2.7% of visitors add to cart, and 80% view a single item before leaving](funnel-chart.svg)
+```
+├── sql/
+│   ├── 00_setup.sql                          load events.csv and build visitor_summary
+│   ├── 01_data_profile_and_funnel.sql        scale, event mix, unique-visitor funnel
+│   ├── 02_trend_is_it_structural.sql         weekly view-to-cart stability
+│   ├── 03_driver_single_item_bounce.sql      browse depth, the root cause
+│   ├── 04_retention.sql                      returning visitors and repeat buyers
+│   ├── 05_experiment_baseline_and_projection.sql   A/B baseline, traffic, lift model
+│   └── 06_powerbi_exports.sql                extracts for the dashboard
+├── experiment/
+│   ├── ab_test_plan.md                       full test design
+│   ├── power_and_projection.py               sample size, duration and MDE
+│   └── key_numbers.json                      every headline number, machine-generated
+├── powerbi/
+│   ├── data/*.csv                            dashboard-ready extracts
+│   ├── measures.dax                          all DAX measures
+│   ├── BUILD_GUIDE.md                        page-by-page build instructions
+│   └── dashboard_mockup.png
+├── scripts/
+│   ├── build_outputs.py                      rebuilds every number from events.csv (no MySQL needed)
+│   └── make_charts.py
+└── images/
+```
+
+**Tools:** MySQL 8 (analysis), Power BI (dashboard and A/B planner), Python (reproducibility checks and power analysis).
 
 ---
 
 ## The data
 
-This is real, anonymized behavior from an online retailer, published by RetailRocket on Kaggle.
+Real, anonymized behavior from an online retailer, published by [RetailRocket on Kaggle](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset). The period is 3 May to 18 Sep 2015 (about 4.5 months, all dates UTC). Each row is one `view`, `addtocart` or `transaction`, with a timestamp, visitor ID and item ID. The data has no prices, so impact is measured in conversion rather than revenue.
+
+---
+
+## 1. The funnel: where it leaks
+
+([`sql/01`](sql/01_data_profile_and_funnel.sql)) Measured at the **unique-visitor** level, because raw event counts inflate every stage.
+
+| Stage | Visitors | Step conversion |
+|---|---|---|
+| Viewed a product | 1,404,179 | |
+| Added to cart | 37,722 | **2.7%** of viewers |
+| Purchased | 11,719 | 31.1% of carters |
+
+The leak is at the first step: **97.3% of viewers never add anything to their cart**. Once something is in the cart, nearly a third of carters buy, so checkout is doing its job. End to end, only 0.83% of visitors purchase.
+
+*Data-quality note:* 3,321 carters have no logged view (tracking gaps). Counting only carters with a logged view gives a strict rate of 2.45%. The conclusion doesn't change.
+
+## 2. It's structural, not a bad patch
+
+([`sql/02`](sql/02_trend_is_it_structural.sql))
+
+![Weekly view-to-cart](images/weekly_trend.png)
+
+Across all 19 full weeks, view-to-cart stayed between **2.29% and 2.96%** (mean 2.58%, SD 0.18pp), while weekly viewers swung from 70k to 97k. Traffic changes, but the rate doesn't. The same experience loses about 97% of viewers every week, so the fix has to be a product change, not a campaign.
+
+## 3. The driver: single-item bounce
+
+([`sql/03`](sql/03_driver_single_item_bounce.sql))
+
+| Items viewed | Viewers | Share | View → cart |
+|---|---|---|---|
+| 1 item | 1,118,109 | **79.6%** | **1.32%** |
+| 2 to 4 | 247,092 | 17.6% | 5.04% |
+| 5 to 9 | 29,769 | 2.1% | 14.55% |
+| 10+ | 9,209 | 0.7% | 30.69% |
+
+- **Conversion climbs with every product viewed:** 1.3% → 3.9% → 6.8% → 9.2% for 1, 2, 3 and 4 items.
+- **Single-item visitors really are bouncing.** 90% had exactly one page view, and 97% were seen on only one day.
+- **It's a mix problem.** Visitors who view 2+ items add to cart at **6.85%**. Because 4 in 5 viewers stop at one item (1.32%), the blend collapses to about 2.5%.
+- **80.5% of all viewers who never add to cart saw exactly one product.**
+- Buyers view **9.6** products on average, against **1.5** for non-buyers.
+
+## 4. Retention context
+
+([`sql/04`](sql/04_retention.sql)) **90%** of visitors are seen on a single day, and **91%** of buyers never order again. For most visitors the first session is the only chance to get them browsing.
+
+---
+
+## 5. Recommendation: a product-discovery A/B test
+
+Full plan: [`experiment/ab_test_plan.md`](experiment/ab_test_plan.md)
+
+**Hypothesis.** Adding a "You may also like" strip to the product page will get more single-item visitors to view a second product. That should lift visitor-level view-to-cart from **2.69% to about 3.19% (+19% relative)**, because browsing depth is the strongest predictor of adding to cart in this store.
 
 | | |
 |---|---|
-| Events | 2,756,101 |
-| Unique visitors | roughly 1.4 million |
-| Time span | 3 May 2015 to 18 Sep 2015 (about 4.5 months) |
-| Event types | view, addtocart, transaction |
+| Unit / split | Visitor, 50/50, sticky assignment |
+| **Primary metric** | View-to-cart conversion (baseline 2.69%) |
+| Secondary | Avg items viewed (1.52), single-item share (79.6%), view-to-purchase (0.83%), strip CTR |
+| **Guardrails** | Cart-to-purchase must not drop >5% relative (baseline 31.1%) · page load p75 +200 ms max · no bounce increase · SRM check |
+| Duration | 14 days, about 71.8k visitors per arm, **MDE 9.1% relative** at α = 0.05 and 80% power |
+| **Ship if** | Primary lift significant (p < 0.05), CI lower bound > 0, and no guardrail breached |
 
-Every row is one thing a visitor did: they viewed an item, added it to cart, or bought it. Each comes with a timestamp, a visitor ID, and an item ID.
+### Where the 19% comes from
 
-**Tools:** MySQL for everything. All the queries live in [`analysis.sql`](analysis.sql).
+([`sql/05`](sql/05_experiment_baseline_and_projection.sql), [`power_and_projection.py`](experiment/power_and_projection.py))
 
----
+![A/B projection scenarios](images/ab_projection.png)
 
-## What I set out to answer
+```
+extra carters = 1,118,109 single-item viewers × reach × causal share × (5.04% − 1.32%)
+```
 
-Simple goal. Find the single biggest leak on the path to purchase, explain why it happens, and recommend a fix I could actually test.
-
----
-
-## What I found
-
-### The funnel, and where it leaks
-
-I measured this at the unique-visitor level rather than raw event counts. Raw counts lie here, because one person views lots of items and that inflates everything.
-
-| Stage | Visitors | Conversion |
-|---|---|---|
-| Viewed something | 1,404,179 | |
-| Added to cart | 37,722 | 2.7% of viewers |
-| Bought | 11,719 | 31.1% of carters |
-
-The leak is right at the start, in the jump from viewing to adding to cart. Only 2.7% of browsers ever cart anything. But look at the next step: once something is in the cart, 31% go on to buy. Checkout is doing its job. Discovery is where people fall away. End to end, only 0.83% of visitors buy anything.
-
-### It's structural, not a bad patch
-
-Weekly active users held steady between 70,000 and 95,000, and the view-to-cart rate never left the 2.3% to 3.0% band across every full week in the data. Nothing about it self-corrects. Week after week the same experience stops roughly 97% of visitors from carting.
-
-### Buyers browse. Everyone else bounces.
-
-| Type of visitor | Average items viewed |
-|---|---|
-| Didn't buy | 1.45 |
-| Bought | 9.61 |
-
-Buyers look at about six and a half times more items than non-buyers. When I break every viewer down by how much they browsed, the picture is stark:
-
-| Items viewed | Visitors | Share of viewers |
-|---|---|---|
-| 1 item | 1,118,109 | 80% |
-| 2 to 4 items | 247,092 | 18% |
-| 5 to 9 items | 29,769 | 2% |
-| 10 or more | 9,209 | 0.7% |
-
-Eighty percent of visitors see one product and are gone. They never get far enough to find something they'd want.
-
-### People don't come back
-
-Ninety percent of visitors show up on a single day and never return. And of the customers who did buy, only about 9% ever bought again. The store leans hard on fresh traffic instead of bringing people back.
+In the **central case**, the strip gets **1 in 6 (17%) single-item visitors** to browse on, and they convert like today's 2–4-item browsers. That gives **+7,057 carters, +18.7% ≈ 19%**, moving the rate from 2.69% to 3.19%. Some of the observed gap is self-selection, so the **conservative case** credits only half of it (+9.4%). The 14-day test is sized to detect even that case (MDE 9.1%).
 
 ---
 
-## The one thing that matters
+## 6. Power BI dashboard
 
-The store attracts visitors well and converts the engaged ones well enough. Its real problem is the huge middle group it never engages at all. Most people never browse past a single product, and single-product visitors almost never buy. The buyers are exactly the ones who explored a lot of items.
+![Dashboard mockup](powerbi/dashboard_mockup.png)
 
-That points at one lever: product discovery. If I can get one-item browsers to view a few more relevant products, I'm nudging them toward the exact behavior that already leads to sales.
+The dashboard has three pages:
 
----
+1. **Funnel overview:** KPI cards, funnel, conversion by depth, weekly trend.
+2. **Why it leaks:** the depth table, the 5x multiplier and retention.
+3. **A/B test planner:** What-if sliders for reach and causal share that recompute the projected lift live, plus a sample-size calculator.
 
-## What I'd do about it, and how I'd test it
-
-### The idea
-
-Add a "You may also like" recommendation strip to the product page. My bet is that it gets people to view more items, which lifts the view-to-cart rate, especially for the 80% who currently look at just one thing.
-
-### How the test is set up
-
-| | |
-|---|---|
-| Who gets split | Visitors |
-| Group A (control) | The product page as it is today |
-| Group B (variant) | The same page plus a related-items strip |
-| Main thing I'm measuring | View-to-cart conversion rate |
-| Also watching | Average items viewed, and overall view-to-purchase rate |
-| Safety checks | Page load time and bounce rate |
-
-### What counts as a win
-
-A clear, statistically significant lift in view-to-cart, with no damage to the safety-check metrics. Starting from a 2.7% baseline, even half a percentage point of absolute lift (getting to around 3.2%) is close to a 19% relative gain, and at 1.4 million visitors that's real money.
-
-### Why this fix and not another
-
-It goes straight at the problem the data actually shows, which is people bouncing after one product. It pushes them toward proven buyer behavior instead of me guessing at price or checkout changes that the numbers say aren't the bottleneck.
+Data extracts, DAX measures and build steps are in [`powerbi/`](powerbi/BUILD_GUIDE.md).
 
 ---
 
-## Where this could be wrong, and what's next
+## Reproduce it
 
-I want to be honest about the limits.
+**MySQL.** Download `events.csv` from Kaggle. Set its path in `sql/00_setup.sql`, then run the files in order.
 
-There's no revenue in this dataset, so I've framed impact in conversion, not money. I didn't use item categories here, and a good follow-up would look at which categories actually pull people deeper into browsing. The A/B test also assumes the recommendations are decent. Bad ones could easily hurt, so I'd pilot the module small before rolling it wide. And a natural next step is proper cohort retention, tracking how fast each week's new visitors drop off over time.
+**Without MySQL:**
+
+```bash
+pip install pandas matplotlib
+python scripts/build_outputs.py /path/to/events.csv   # rebuilds and checks every number
+python experiment/power_and_projection.py             # sample size and MDE
+python scripts/make_charts.py                         # charts and mockup
+```
+
+`build_outputs.py` asserts the headline numbers, so if anything in this README drifted from the data, the script fails.
 
 ---
 
-*Analysis by Gurmesh Singh. Queries in [`analysis.sql`](analysis.sql).*
+## Limitations and next steps
+
+- **Correlation, not causation.** Deeper browsers may simply be more motivated. That is why the projection includes a 50% causal haircut and why the answer is a test rather than a launch.
+- **No revenue data.** Impact is in conversion. In production, add average order value and revenue per visitor as guardrails.
+- **No session IDs.** "Bounce" is approximated as one distinct product viewed (90% of these visitors had a single page view).
+- **Next:** use `item_properties` and `category_tree` to find which categories pull people into deeper browsing, and seed recommendations from them.
+
+---
+
+*Analysis by Gurmesh Singh.*
