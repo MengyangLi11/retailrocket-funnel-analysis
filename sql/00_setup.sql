@@ -27,7 +27,7 @@ CREATE TABLE events (
   transactionid  INT          NULL        -- only on 'transaction' rows
 );
 
-LOAD DATA LOCAL INFILE '/path/to/events.csv'
+LOAD DATA LOCAL INFILE 'C:/Users/18846/Projects/retailrocket-funnel/data/raw/events.csv'
 INTO TABLE events
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\n'
@@ -61,7 +61,7 @@ GROUP BY visitorid;
 ALTER TABLE visitor_summary ADD PRIMARY KEY (visitorid);
 
 -- Browse-depth bucket used throughout the analysis
-ALTER TABLE visitor_summary ADD COLUMN depth_bucket VARCHAR(10);
+ALTER TABLE visitor_summary ADD COLUMN depth_bucket VARCHAR(16);
 UPDATE visitor_summary
 SET depth_bucket = CASE
   WHEN items_viewed = 0             THEN '0 (no view)'

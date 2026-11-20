@@ -1,0 +1,8 @@
+﻿
+
+Algorithm : SHA256
+Hash      : 3745AA83238B1E6D44D8FDA209807899F420084398F94DDF745F3CBCFECBF9E7
+Path      : C:\Users\18846\Projects\retailrocket-funnel\data\raw\events.csv
+
+
+
