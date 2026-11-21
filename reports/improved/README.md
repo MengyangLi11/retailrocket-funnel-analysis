@@ -53,10 +53,17 @@
 
 ## 运行顺序
 
-1. 执行 sql/07_ordered_user_funnel_24h.sql。
-2. 执行 sql/08_funnel_definition_comparison.sql。
-3. 运行 scripts/export_improved_outputs.ps1。
-4. 刷新并查看 powerbi/RetailRocket_Improved.pbix。
+完成原始数据导入后，依次执行：
+
+1. sql/07_ordered_user_funnel_24h.sql
+2. sql/08_funnel_definition_comparison.sql
+3. sql/09_same_item_funnel_24h.sql
+4. scripts/export_improved_outputs.ps1
+5. 刷新并查看 powerbi/RetailRocket_Improved.pbix
+
+导出脚本会生成三张CSV汇总表，需要先完成07和09的明细表构建。
 
 SQL查询输出保存在 reports/improved。
-导出的两张汇总表保存在 powerbi/data/improved。
+CSV汇总表保存在 powerbi/data/improved。
+
+第二项改进详见：[同商品链路分析](same_item_analysis.md)。

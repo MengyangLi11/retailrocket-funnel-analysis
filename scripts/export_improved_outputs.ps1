@@ -68,3 +68,41 @@ $funnelRows |
 
 $comparisonRows | Format-Table -AutoSize | Out-Host
 $funnelRows | Format-Table -AutoSize | Out-Host
+
+# Compare user-level funnels with and without same-item requirements.
+$scopeSql = @'
+SELECT
+    'cross_item_allowed' AS definition,
+    COUNT(*) AS viewers,
+    COUNT(cart_ts) AS carters,
+    COUNT(buy_ts) AS buyers
+FROM retailrocket.funnel_user_24h
+
+UNION ALL
+
+SELECT
+    'same_item_required',
+    COUNT(DISTINCT visitorid),
+    COUNT(DISTINCT CASE
+        WHEN cart_ts IS NOT NULL THEN visitorid END),
+    COUNT(DISTINCT CASE
+        WHEN buy_ts IS NOT NULL THEN visitorid END)
+FROM retailrocket.funnel_item_24h
+
+ORDER BY definition;
+'@
+
+$scopeText = & $mysqlExe @mysqlOptions "--execute=$scopeSql"
+if ($LASTEXITCODE -ne 0) {
+    throw "Funnel scope comparison query failed."
+}
+
+$scopeRows = @($scopeText | ConvertFrom-Csv -Delimiter "`t")
+if ($scopeRows.Count -ne 2) {
+    throw "Expected 2 funnel scope comparison rows."
+}
+
+$scopeRows |
+    Export-Csv -LiteralPath (Join-Path $exportDir "funnel_scope_comparison.csv") -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
+
+$scopeRows | Format-Table -AutoSize | Out-Host
