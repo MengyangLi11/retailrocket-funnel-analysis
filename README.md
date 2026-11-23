@@ -1,3 +1,71 @@
+# RetailRocket 用户行为漏斗分析：复现与指标口径改进
+
+基于 gurmeshsingh/RetailRocket-Funnel-Analysis，
+完成原项目复现，并围绕时间顺序、商品一致性和转化窗口
+开展三项改进。
+
+技术栈：MySQL 8、Python、PowerShell、Power BI、Git。
+
+## 完成的工作
+
+- 复现2,756,101条事件数据的处理、SQL分析与图表生成。
+- 保存原版结果、运行日志、依赖版本和输入文件哈希。
+- 构建用户级24小时有序漏斗，并分解统计口径变化的影响。
+- 增加同商品链路要求，按用户去重比较转化人数与比例。
+- 固定7天完整观察期人群，比较1小时、24小时和7天窗口。
+- 建立CSV导出脚本，并制作6页Power BI报表。
+
+## 主要发现
+
+### 1. 时间顺序与统计口径
+
+原版全期独立阶段人数比值为2.6864%。
+
+加入浏览与加购交集、完整观察期、时间顺序和24小时限制后，
+用户级有序漏斗为：
+
+1,399,102名浏览用户 → 28,195名加购用户 → 7,915名购买用户。
+
+浏览到加购比例为2.0152%。
+各项口径变化的影响已分别拆解，详见分析文档。
+
+### 2. 同商品要求
+
+在相同用户人群和24小时窗口下，增加同商品要求后，
+合格加购用户从28,195人变为26,125人，
+合格购买用户从7,915人变为7,693人。
+
+### 3. 转化窗口
+
+固定同一批1,345,063名具备7天完整观察期的用户，
+并要求同商品、按时间顺序转化：
+
+- 1小时内购买5,882人，占7天合格购买用户的70.97%。
+- 24小时内购买7,445人，覆盖89.83%。
+- 7天内购买8,288人，比24小时额外纳入843人。
+
+原项目约18.7%的相对提升属于假设驱动的情景预估。
+
+## 结果入口
+
+- [改进说明与运行顺序](reports/improved/README.md)
+- [同商品链路分析](reports/improved/same_item_analysis.md)
+- [转化窗口分析](reports/improved/window_sensitivity.md)
+- [Power BI主报表](powerbi/RetailRocket_Improved.pbix)
+
+## 版本记录
+
+| 标签 | 内容 |
+|---|---|
+| baseline-v1 | 原版复现与结果归档 |
+| ordered-funnel-v1 | 用户级24小时有序漏斗 |
+| same-item-funnel-v1.1 | 同商品链路分析与归档修正 |
+| window-sensitivity-v1 | 固定人群的转化窗口分析 |
+
+---
+
+
+
 # RetailRocket E-Commerce Funnel Analysis (SQL · Power BI)
 
 **Why do 97% of shoppers on this store never add anything to their cart, and what test would fix it?**
