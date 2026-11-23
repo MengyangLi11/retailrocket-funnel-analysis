@@ -58,12 +58,15 @@
 1. sql/07_ordered_user_funnel_24h.sql
 2. sql/08_funnel_definition_comparison.sql
 3. sql/09_same_item_funnel_24h.sql
+10_window_sensitivity.sql
 4. scripts/export_improved_outputs.ps1
 5. 刷新并查看 powerbi/RetailRocket_Improved.pbix
 
-导出脚本会生成三张CSV汇总表，需要先完成07和09的明细表构建。
+导出脚本会生成四张 CSV 汇总表，需要先完成07和09的明细表构建。
 
 SQL查询输出保存在 reports/improved。
 CSV汇总表保存在 powerbi/data/improved。
 
 第二项改进详见：[同商品链路分析](same_item_analysis.md)。
+
+ 第三项改进详见：[转化窗口敏感性分析](window_sensitivity.md)。

@@ -106,3 +106,38 @@ $scopeRows |
     Export-Csv -LiteralPath (Join-Path $exportDir "funnel_scope_comparison.csv") -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
 
 $scopeRows | Format-Table -AutoSize | Out-Host
+
+# Export window sensitivity results
+$windowSql = @"
+SELECT
+    window_hours,
+    viewers,
+    carters,
+    buyers,
+    view_to_cart_pct,
+    view_to_buy_pct,
+    buyer_coverage_7d_pct
+FROM retailrocket.funnel_window_sensitivity
+ORDER BY window_hours;
+"@
+
+$windowText = & $mysqlExe @mysqlOptions "--execute=$windowSql"
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Window sensitivity query failed."
+}
+
+$windowRows = @(
+    $windowText | ConvertFrom-Csv -Delimiter "`t"
+)
+
+if ($windowRows.Count -ne 3) {
+    throw "Expected 3 window sensitivity rows."
+}
+
+$windowRows |
+    Export-Csv -LiteralPath (
+        Join-Path $exportDir "window_sensitivity.csv"
+    ) -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
+
+$windowRows | Format-Table -AutoSize | Out-Host
